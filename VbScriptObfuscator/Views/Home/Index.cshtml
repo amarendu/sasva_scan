@@ -1,0 +1,33 @@
+@{ 
+    ViewData["Title"] = "VBScript Obfuscator"; 
+} 
+<h1>@ViewData["Title"]</h1> 
+@if (ViewData["Message"] != null) 
+{ 
+    <div class="alert alert-@ViewData["MessageType"]"> 
+        @ViewData["Message"] 
+    </div> 
+} 
+<form asp-action="UploadFiles" method="post" enctype="multipart/form-data"> 
+    <div> 
+        <label for="files">Select VBScript files to upload:</label> 
+        <input type="file" id="files" name="files" multiple /> 
+    </div> 
+    <div> 
+        <label for="obfuscationType">Select Obfuscation Type:</label> 
+        <select id="obfuscationType" name="obfuscationType"> 
+            <option value="arithmetic">Arithmetic</option> 
+            <option value="base64">Base64</option> 
+            <option value="rot47">ROT47</option> 
+        </select> 
+    </div> 
+    <button type="submit">Upload</button> 
+</form> 
+<h2>De-Obfuscate Scripts</h2> 
+<form asp-action="DeObfuscateFiles" method="post" enctype="multipart/form-data"> 
+    <div> 
+        <label for="files">Select obfuscated VBScript files to upload:</label> 
+        <input type="file" id="files" name="files" multiple /> 
+    </div> 
+    <button type="submit">Upload for De-Obfuscation</button> 
+</form>
