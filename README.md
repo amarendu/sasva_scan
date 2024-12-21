@@ -1,3 +1,3 @@
 # sasva_scan
 Created a repo for sasva project
-new pr
+changes in new readme
