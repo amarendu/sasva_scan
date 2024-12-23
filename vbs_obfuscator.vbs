@@ -1,24 +1,40 @@
+' https://isvbscriptdead.com/vbs-obfuscator/ 
 Option Explicit 
-Function Defuscator(vbs) 
+Function vbs_obfuscator(n) 
     On Error Resume Next 
-    Dim t, scriptStart 
-    scriptStart = InStr(1, vbs, "Execute", 1) 
-    If Err.Number <> 0 Or scriptStart = 0 Then 
-        LogError "Error in finding 'Execute' in script: " & Err.Description 
-        Exit Function 
-    End If 
-    t = Trim(Mid(vbs, scriptStart + Len("Execute"))) 
+    Dim r, k 
+    r = Round(Rnd() * 10000) + 1 
+    k = Round(Rnd() * 2) + 1 
     If Err.Number <> 0 Then 
-        LogError "Error in extracting script part: " & Err.Description 
+        LogError "Error in generating random numbers: " & Err.Description 
         Exit Function 
     End If 
-    t = Eval(t) 
-    If Err.Number <> 0 Then 
-        LogError "Error in evaluating script: " & Err.Description 
-        Exit Function 
-    End If 
-    LogStatus "Deobfuscation successful." 
-    Defuscator = t 
+    Select Case k 
+        Case 0 
+            vbs_obfuscator = "CLng(&H" & Hex(r + n) & ")-" & r 
+        Case 1 
+            vbs_obfuscator = (n - r) & "+CLng(&H" & Hex(r) & ")" 
+        Case Else 
+            vbs_obfuscator = (n * r) & "/CLng(&H" & Hex(r) & ")" 
+    End Select 
+End Function 
+Function Obfuscator(vbs) 
+    On Error Resume Next 
+    Dim length, s, i 
+    length = Len(vbs) 
+    s = "" 
+    For i = 1 To length 
+        Dim obfuscatedChar 
+        obfuscatedChar = vbs_obfuscator(Asc(Mid(vbs, i))) 
+        If Err.Number <> 0 Then 
+            LogError "Error in obfuscating character at position " & i & ": " & Err.Description 
+            Exit Function 
+        End If 
+        s = s & "chr(" & obfuscatedChar & ")&" 
+    Next 
+    s = s & "vbCrlf" 
+    LogStatus "Obfuscation successful." 
+    Obfuscator = "Execute " & s 
 End Function 
 Sub LogError(message) 
     Dim logFile 
@@ -32,6 +48,9 @@ Sub LogStatus(message)
     logFile.WriteLine Now & " - STATUS - " & message 
     logFile.Close 
 End Sub 
+If WScript.Arguments.Count = 0 Then 
+    WScript.Quit 
+End If 
 Dim fso, i 
 Const ForReading = 1 
 Set fso = CreateObject("Scripting.FileSystemObject") 
@@ -52,7 +71,7 @@ For i = 0 To WScript.Arguments.Count - 1
         MyFile.Close 
         Continue For 
     End If 
-    Defuscator(vbs) 
+    Obfuscator(vbs) 
     MyFile.Close 
     LogStatus "Processed file " & FileName 
 Next 
