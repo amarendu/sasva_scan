@@ -1,113 +1,85 @@
+' https://isvbscriptdead.com/vbs-obfuscator/ 
 Option Explicit 
-' Logger function to log messages to a file based on log level 
-Sub Logger(message, level) 
-    Dim logFile, fso, logStream, currentLevel 
-    logFile = "defuscator_log.txt" 
-    currentLevel = GetLogLevel() 
-    If ShouldLog(level, currentLevel) Then 
-        Set fso = CreateObject("Scripting.FileSystemObject") 
-        Set logStream = fso.OpenTextFile(logFile, 8, True) ' 8 for appending 
-        logStream.WriteLine Now & " - " & level & " - " & message 
-        logStream.Close 
-        Set logStream = Nothing 
-        Set fso = Nothing 
+' Log levels 
+Const LOG_INFO = "INFO" 
+Const LOG_ERROR = "ERROR" 
+' Default log level 
+Dim logLevel 
+logLevel = LOG_INFO ' Set the default log level to INFO 
+' Flag to control logging 
+Dim isLoggingEnabled 
+isLoggingEnabled = True ' Default to logging enabled 
+' Function to log messages based on the current log level and logging flag 
+Sub LogMessage(level, message) 
+    If isLoggingEnabled Then 
+        If (level = LOG_ERROR) Or (level = LOG_INFO And logLevel = LOG_INFO) Then 
+            WScript.Echo "[" & level & "] " & message 
+        End If 
     End If 
 End Sub 
-' Function to determine if a message should be logged based on the current level 
-Function ShouldLog(messageLevel, currentLevel) 
-    Dim levels 
-    levels = Array("error", "info", "debug") 
-    ShouldLog = False 
-    If ArrayContains(levels, messageLevel) And ArrayContains(levels, currentLevel) Then 
-        If ArrayIndex(levels, messageLevel) <= ArrayIndex(levels, currentLevel) Then 
-            ShouldLog = True 
-        End If 
-    End If 
-End Function 
-' Function to get the current logging level from command line arguments 
-Function GetLogLevel() 
-    Dim logLevel, i 
-    logLevel = "info" ' default level 
-    For i = 0 To WScript.Arguments.Count - 1 
-        If InStr(1, WScript.Arguments(i), "--log-level=") = 1 Then 
-            logLevel = Mid(WScript.Arguments(i), 13) 
-            Exit For 
-        End If 
-    Next 
-    GetLogLevel = logLevel 
-End Function 
-' Utility function to check if an array contains a value 
-Function ArrayContains(arr, value) 
-    Dim i 
-    ArrayContains = False 
-    For i = LBound(arr) To UBound(arr) 
-        If arr(i) = value Then 
-            ArrayContains = True 
-            Exit Function 
-        End If 
-    Next 
-End Function 
-' Utility function to find the index of a value in an array 
-Function ArrayIndex(arr, value) 
-    Dim i 
-    ArrayIndex = -1 
-    For i = LBound(arr) To UBound(arr) 
-        If arr(i) = value Then 
-            ArrayIndex = i 
-            Exit Function 
-        End If 
-    Next 
-End Function 
 Function Defuscator(vbs) 
-    Dim t, evalStart 
-    evalStart = InStr(1, vbs, "Execute", 1) 
-    If evalStart > 0 Then 
-        t = Mid(vbs, evalStart + Len("Execute")) 
-        On Error Resume Next 
-        t = Eval(t) 
-        If Err.Number <> 0 Then 
-            Logger "Error during evaluation: " & Err.Description, "error" 
-            Err.Clear 
-        End If 
-        On Error GoTo 0 
-        Defuscator = t 
-    Else 
-        Logger "No executable code found.", "info" 
-        Defuscator = "Error: No executable code found." 
+    Dim t, executeStart, executeEnd, codeToExecute 
+    executeStart = InStr(1, vbs, "Execute", 1) 
+    If executeStart = 0 Then 
+        LogMessage LOG_ERROR, "No 'Execute' statement found in the script." 
+        Exit Function 
     End If 
+    ' Extract the code following the 'Execute' statement 
+    executeEnd = InStr(executeStart, vbs, vbCrLf) ' Find end of line 
+    If executeEnd = 0 Then 
+        executeEnd = Len(vbs) + 1 ' If no newline, assume end of script 
+    End If 
+    codeToExecute = Trim(Mid(vbs, executeStart + Len("Execute"), executeEnd - executeStart - Len("Execute"))) 
+    LogMessage LOG_INFO, "Code to execute: " & codeToExecute 
+    On Error Resume Next 
+    t = Eval(codeToExecute) 
+    If Err.Number <> 0 Then 
+        LogMessage LOG_ERROR, "Error during de-obfuscation: " & Err.Description 
+        Err.Clear 
+    Else 
+        Defuscator = t 
+    End If 
+    On Error Goto 0 
 End Function 
 Dim fso, i 
 Const ForReading = 1 
 Set fso = CreateObject("Scripting.FileSystemObject") 
-Logger "Script execution started.", "info" 
+' Check command-line arguments for logging option 
+Dim logArgIndex 
+logArgIndex = -1 
 For i = 0 To WScript.Arguments.Count - 1 
-    If Left(WScript.Arguments(i), 12) = "--log-level=" Then 
-        Continue For 
+    If WScript.Arguments(i) = "--no-log" Then 
+        isLoggingEnabled = False 
+        logArgIndex = i 
+        Exit For 
+    ElseIf WScript.Arguments(i) = "--log" Then 
+        isLoggingEnabled = True 
+        logArgIndex = i 
+        Exit For 
     End If 
-    Dim FileName 
+Next 
+' Adjust arguments count if log argument is present 
+If logArgIndex <> -1 Then 
+    WScript.Arguments.Remove logArgIndex 
+End If 
+LogMessage LOG_INFO, "De-obfuscation process started." 
+For i = 0 To WScript.Arguments.Count - 1 
+    Dim FileName, MyFile, vbs, FileSize 
     FileName = WScript.Arguments(i) 
-    On Error Resume Next 
-    Dim MyFile 
+    ' Log the input file name 
+    LogMessage LOG_INFO, "Processing file: " & FileName 
+    ' Open the file and log its size 
     Set MyFile = fso.OpenTextFile(FileName, ForReading) 
-    If Err.Number <> 0 Then 
-        Logger "Error opening file: " & FileName & " - " & Err.Description, "error" 
-        Err.Clear 
-        On Error GoTo 0 
-        Continue For 
-    End If 
-    Dim vbs 
     vbs = MyFile.ReadAll 
-    Logger "Processing file: " & FileName, "info" 
+    FileSize = Len(vbs) 
+    LogMessage LOG_INFO, "File size: " & FileSize & " bytes" 
+    ' Perform de-obfuscation 
     Dim result 
     result = Defuscator(vbs) 
-    If Left(result, 5) = "Error" Then 
-        Logger "Error processing file: " & FileName & " - " & result, "error" 
-    Else 
+    If result <> "" Then 
         WScript.Echo result 
     End If 
     MyFile.Close 
-    Logger "Finished processing file: " & FileName, "info" 
-    On Error GoTo 0 
 Next 
-Logger "Script execution ended.", "info" 
+LogMessage LOG_INFO, "De-obfuscation process completed." 
 Set fso = Nothing
